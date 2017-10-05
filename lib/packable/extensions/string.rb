@@ -8,22 +8,23 @@ module Packable
         base.class_eval do
           include Packable
           extend ClassMethods
-          alias_method :unpack_without_long_form, :unpack
-          alias_method :unpack, :unpack_with_long_form
+          prepend UnpackableMethods
           packers.set :merge_all, :fill => " "
         end
       end
 
-      def write_packed(io, options)
-        return io.write_without_packing(self) unless options[:bytes]
-        io.write_without_packing(self[0...options[:bytes]].ljust(options[:bytes], options[:fill] || "\000"))
+      module UnpackableMethods
+        def unpack_with_long_form(*arg)
+          return super(*arg) if arg.first.is_a? String
+          StringIO.new(self).packed.read(*arg)
+        rescue EOFError
+          nil
+        end
       end
 
-      def unpack_with_long_form(*arg)
-        return unpack_without_long_form(*arg) if arg.first.is_a? String
-        StringIO.new(self).packed.read(*arg)
-      rescue EOFError
-        nil
+      def write_packed(io, options)
+        return io.write(self) unless options[:bytes]
+        io.write(self[0...options[:bytes]].ljust(options[:bytes], options[:fill] || "\000"))
       end
 
       module ClassMethods #:nodoc:

@@ -5,19 +5,21 @@ module Packable
     module Array #:nodoc:
       def self.included(base)
         base.class_eval do
-          alias_method :pack_without_long_form, :pack
-          alias_method :pack, :pack_with_long_form
           include Packable
           extend ClassMethods
+          prepend PackableMethods
         end
       end
 
-      def pack_with_long_form(*arg)
-        return pack_without_long_form(*arg) if arg.first.is_a? String
-        pio = StringIO.new.packed
-        write_packed(pio, *arg)
-        pio.string
+      module PackableMethods
+        def pack(*arg)
+          return super(*arg) if arg.first.is_a? String
+          pio = StringIO.new.packed
+          write_packed(pio, *arg)
+          pio.string
+        end
       end
+    
 
       def write_packed(io, *how)
         return io << self.original_pack(*how) if how.first.is_a? String

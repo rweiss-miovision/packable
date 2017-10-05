@@ -5,16 +5,33 @@ module Packable
   module Extensions #:nodoc:
     module IO
       def self.included(base) #:nodoc:
-        alias_method :read_without_packing, :read
-        alias_method :read, :read_with_packing
-
-        alias_method :write_without_packing, :write
-        alias_method :write, :write_with_packing
-
-        alias_method :each_without_packing, :each
-        alias_method :each, :each_with_packing
+        prepend IOMethods
       end
       
+      module IOMethods
+        def each(*options, &block)
+          return super(*options, &block) if (Integer === options.first) || (String === options.first)
+          return Enumerator.new(self, :each, *options) unless block_given?
+          yield read(*options) until eof?
+        end
+
+        def write(*arg)
+          (arg.length == 1) ? super(*arg) : pack_and_write(*arg)
+        end
+      
+        def read(*arg)
+          return super(*arg) if arg.length == 0 || arg.first.nil? || arg.first.is_a?(Numeric)
+          values = Packable::Packers.to_class_option_list(*arg).map do |klass, options, original|
+            if options[:read_packed]
+              options[:read_packed].call(self)
+            else
+              klass.read_packed(self, options)
+            end
+          end
+          return values.size > 1 ? values : values.first
+        end
+      end
+
       # Returns the change in io.pos caused by the block.
       # Has nothing to do with packing, but quite helpful and so simple...
       def pos_change(&block)
@@ -56,33 +73,11 @@ module Packable
         end
         block_given? ? yield(packedio) : packedio
       end
-
-      def each_with_packing(*options, &block)
-        return each_without_packing(*options, &block) if (Integer === options.first) || (String === options.first)
-        return Enumerator.new(self, :each_with_packing, *options) unless block_given?
-        yield read(*options) until eof?
-      end
-
-      def write_with_packing(*arg)
-        (arg.length == 1) ? write_without_packing(*arg) : pack_and_write(*arg)
-      end
-    
-      def read_with_packing(*arg)
-        return read_without_packing(*arg) if arg.length == 0 || arg.first.nil? || arg.first.is_a?(Numeric)
-        values = Packable::Packers.to_class_option_list(*arg).map do |klass, options, original|
-          if options[:read_packed]
-            options[:read_packed].call(self)
-          else
-            klass.read_packed(self, options)
-          end
-        end
-        return values.size > 1 ? values : values.first
-      end
       
       # returns a string of exactly n bytes, or else raises an EOFError
       def read_exactly(n)
         return "" if n.zero?
-        s = read_without_packing(n)
+        s = read(n)
         raise EOFError if s.nil? || s.length < n
         s
       end
