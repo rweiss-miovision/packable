@@ -1,5 +1,5 @@
 require "packable/version"
-require 'backports/tools/alias_method_chain'
+require 'backports/tools/alias_method'
 require 'backports/rails/module'
 require_relative 'packable/packers'
 require_relative 'packable/mixin'
