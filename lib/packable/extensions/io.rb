@@ -5,9 +5,14 @@ module Packable
   module Extensions #:nodoc:
     module IO
       def self.included(base) #:nodoc:
-        base.alias_method_chain :read, :packing
-        base.alias_method_chain :write, :packing
-        base.alias_method_chain :each, :packing
+        base.alias_method :read_without_packing, :read
+        base.alias_method :read, :read_with_packing
+
+        base.alias_method :write_without_packing, :write
+        base.alias_method :write, :write_with_packing
+
+        base.alias_method :each_without_packing, :each
+        base.alias_method :each, :each_with_packing
       end
       
       # Returns the change in io.pos caused by the block.
